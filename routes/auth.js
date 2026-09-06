@@ -1,9 +1,10 @@
 const express = require("express");
 const argon2 = require("argon2");
 const rateLimit = require("express-rate-limit");
-const { body, validationResult } = require("express-validator");
+const { body } = require("express-validator");
 const User = require("../models/User");
 const { requireAuth } = require("../middleware/auth");
+const { checkValidation } = require("../middleware/validate");
 
 const router = express.Router();
 
@@ -32,16 +33,6 @@ const ARGON2_OPTS = {
   parallelism: 1,
 };
 
-function validationError(req, res) {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    // 422: syntactically valid request, semantically invalid input
-    res.status(422).json({ error: "Validation failed.", details: errors.array().map((e) => e.msg) });
-    return true;
-  }
-  return false;
-}
-
 // ---- REGISTER ----
 router.post(
   "/register",
@@ -55,7 +46,7 @@ router.post(
   ],
   async (req, res, next) => {
     try {
-      if (validationError(req, res)) return;
+      if (checkValidation(req, res)) return;
       const { name, email, password } = req.body;
 
       const existing = await User.findOne({ email });
@@ -94,7 +85,7 @@ router.post(
   ],
   async (req, res, next) => {
     try {
-      if (validationError(req, res)) return;
+      if (checkValidation(req, res)) return;
       const { email, password } = req.body;
 
       const GENERIC_FAIL = { error: "Invalid email or password." };

@@ -1,20 +1,12 @@
 const express = require("express");
-const { body, validationResult } = require("express-validator");
+const { body } = require("express-validator");
 const User = require("../models/User");
 const Order = require("../models/Order");
 const { requireAuth } = require("../middleware/auth");
+const { checkValidation } = require("../middleware/validate");
 
 const router = express.Router();
 router.use(requireAuth); // every route below requires an authenticated session
-
-function checkValidation(req, res) {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    res.status(422).json({ error: "Validation failed.", details: errors.array().map((e) => e.msg) });
-    return true;
-  }
-  return false;
-}
 
 // ---- PROFILE ----
 router.get("/me", (req, res) => res.json({ user: req.user.toSafeJSON() }));

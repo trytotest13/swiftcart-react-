@@ -1,16 +1,16 @@
 const express = require("express");
-const { body, validationResult } = require("express-validator");
+const { body } = require("express-validator");
 const Product = require("../models/Product");
 const Order = require("../models/Order");
 const User = require("../models/User");
 const Coupon = require("../models/Coupon");
-const { requireAuth, requireAdmin } = require("../middleware/auth");
+const { requireAdmin } = require("../middleware/auth");
+const { checkValidation, normCode } = require("../middleware/validate");
 
 const router = express.Router();
 
-// Every route in this file requires BOTH an authenticated session AND the admin role.
-// A logged-in customer hitting any of these gets 403, never 200.
-router.use(requireAuth, requireAdmin);
+// Every route in this file requires the admin role (requireAdmin already 401s when unauthenticated).
+router.use(requireAdmin);
 
 // ---- ORDERS ----
 router.get("/orders", async (req, res, next) => {
@@ -27,8 +27,7 @@ router.patch(
   [body("orderStatus").isIn(["placed", "packing", "out_for_delivery", "delivered", "cancelled"])],
   async (req, res, next) => {
     try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) return res.status(422).json({ error: "Invalid status." });
+      if (checkValidation(req, res)) return;
       const order = await Order.findById(req.params.id);
       if (!order) return res.status(404).json({ error: "Order not found." });
       order.orderStatus = req.body.orderStatus;
@@ -62,8 +61,7 @@ router.post(
   ],
   async (req, res, next) => {
     try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) return res.status(422).json({ error: "Validation failed.", details: errors.array() });
+      if (checkValidation(req, res)) return;
       const product = await Product.create(req.body);
       res.status(201).json({ product });
     } catch (err) {
@@ -136,11 +134,10 @@ router.post(
   ],
   async (req, res, next) => {
     try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) return res.status(422).json({ error: "Validation failed.", details: errors.array() });
+      if (checkValidation(req, res)) return;
       const { code, type, value, minSubtotal, maxDiscount, active } = req.body;
       const coupon = await Coupon.create({
-        code: code.toUpperCase(),
+        code: normCode(code),
         type,
         value,
         minSubtotal: minSubtotal || 0,
@@ -165,7 +162,7 @@ router.patch("/coupons/:code", async (req, res, next) => {
     if (maxDiscount !== undefined) update.maxDiscount = maxDiscount;
     if (active !== undefined) update.active = active;
     const coupon = await Coupon.findOneAndUpdate(
-      { code: req.params.code.toUpperCase() },
+      { code: normCode(req.params.code) },
       update,
       { new: true, runValidators: true }
     );
@@ -178,7 +175,7 @@ router.patch("/coupons/:code", async (req, res, next) => {
 
 router.delete("/coupons/:code", async (req, res, next) => {
   try {
-    const coupon = await Coupon.findOneAndDelete({ code: req.params.code.toUpperCase() });
+    const coupon = await Coupon.findOneAndDelete({ code: normCode(req.params.code) });
     if (!coupon) return res.status(404).json({ error: "Coupon not found." });
     res.json({ ok: true });
   } catch (err) {

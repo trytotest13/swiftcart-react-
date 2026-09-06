@@ -1,10 +1,11 @@
 const express = require("express");
-const { body, validationResult } = require("express-validator");
+const { body } = require("express-validator");
 const mongoose = require("mongoose");
 const Product = require("../models/Product");
 const Order = require("../models/Order");
 const Coupon = require("../models/Coupon");
 const { requireAuth } = require("../middleware/auth");
+const { checkValidation, normCode } = require("../middleware/validate");
 
 const router = express.Router();
 
@@ -13,7 +14,7 @@ const FREE_DELIVERY_THRESHOLD = 200;
 
 async function computeDiscount(code, subtotal) {
   if (!code) return { discount: 0, code: null };
-  const coupon = await Coupon.findOne({ code: code.toUpperCase(), active: true });
+  const coupon = await Coupon.findOne({ code: normCode(code), active: true });
   if (!coupon || subtotal < coupon.minSubtotal) return { discount: 0, code: null };
   let discount = coupon.type === "flat" ? coupon.value : Math.round((subtotal * coupon.value) / 100);
   if (coupon.maxDiscount) discount = Math.min(discount, coupon.maxDiscount);
@@ -82,10 +83,7 @@ router.post(
   async (req, res, next) => {
     const session = await mongoose.startSession();
     try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(422).json({ error: "Validation failed.", details: errors.array().map((e) => e.msg) });
-      }
+      if (checkValidation(req, res)) return;
 
       const { items, paymentMethod, couponCode, addressId } = req.body;
       let address = req.body.address;
@@ -177,7 +175,3 @@ router.post(
 );
 
 module.exports = router;
-module.exports.priceCart = priceCart;
-module.exports.computeDiscount = computeDiscount;
-module.exports.DELIVERY_FEE = DELIVERY_FEE;
-module.exports.FREE_DELIVERY_THRESHOLD = FREE_DELIVERY_THRESHOLD;

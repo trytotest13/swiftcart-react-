@@ -33,8 +33,7 @@ function requireAuth(req, res, next) {
 
 /**
  * Rejects requests from authenticated users who are not admins.
- * Authentication ("who is this") and authorization ("what can they do") are checked separately:
- * requireAuth must run first, requireAdmin only ever checks role.
+ * Covers unauthenticated requests too (401), so mount this alone.
  */
 function requireAdmin(req, res, next) {
   if (!req.user) {

@@ -20,6 +20,12 @@ function getClient() {
   });
 }
 
+// ponytail: sync hex HMAC compare with per-call Buffer allocs, extract raw-body verify helper if webhook throughput matters
+function validHmacHex(expected, actual) {
+  if (!expected || !actual || expected.length !== actual.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(actual));
+}
+
 /**
  * Step 1 of the payment flow: the SwiftCart order already exists (created via
  * POST /api/orders, pending payment). Now open a Razorpay order for the SAME
@@ -85,9 +91,7 @@ router.post("/verify", requireAuth, async (req, res, next) => {
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest("hex");
 
-    const valid =
-      expected.length === razorpay_signature.length &&
-      crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(razorpay_signature));
+    const valid = validHmacHex(expected, razorpay_signature);
 
     if (!valid) {
       order.paymentStatus = "failed";
@@ -141,9 +145,7 @@ router.post("/wallet/topup/verify", requireAuth, async (req, res, next) => {
       .createHmac("sha256", process.env.PAYMENT_KEY_SECRET)
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest("hex");
-    const valid =
-      expected.length === razorpay_signature.length &&
-      crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(razorpay_signature));
+    const valid = validHmacHex(expected, razorpay_signature);
     if (!valid) return res.status(400).json({ error: "Payment verification failed." });
 
     const User = require("../models/User");
@@ -174,9 +176,7 @@ webhookRouter.post("/", async (req, res) => {
     if (!signature) return res.status(400).json({ error: "Missing signature." });
 
     const expected = crypto.createHmac("sha256", secret).update(req.body).digest("hex");
-    const valid =
-      expected.length === signature.length &&
-      crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+    const valid = validHmacHex(expected, signature);
     if (!valid) return res.status(400).json({ error: "Invalid webhook signature." });
 
     const payload = JSON.parse(req.body.toString("utf8"));

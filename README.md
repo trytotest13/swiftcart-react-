@@ -1,4 +1,4 @@
-# SwiftCart — React frontend
+# SwiftCart - React frontend
 
 This is the same SwiftCart storefront + admin panel, now running as a
 **React app**, wired to the **original, completely untouched Express
@@ -32,8 +32,6 @@ src/
   admin-main.jsx        ← mounts <AdminPage />
   pages/
     LegacyPage.jsx      ← generic "mount original CSS+HTML+JS" wrapper
-    StorefrontPage.jsx
-    AdminPage.jsx
   content/
     storefrontStyle.js  ← original <style> block, verbatim
     storefrontBody.js    ← original <body> markup, verbatim

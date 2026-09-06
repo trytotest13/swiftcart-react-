@@ -1,4 +1,15 @@
 require("dotenv").config();
+
+// Prevent unhandled MongoDB connection rejections from crashing the process.
+// connectDB() re-throws when the connection fails so callers can react, but the
+// mongoose driver also emits an unhandled rejection on its internal promise.
+process.on("unhandledRejection", (err) => {
+  if (err?.message?.includes("ECONNREFUSED") || err?.message?.includes("MongoServerSelectionError")) {
+    console.warn("[server] unhandled DB rejection (will retry on next request):", err.message.split("\n")[0]);
+    return;
+  }
+  console.error("[server] unhandled rejection:", err);
+});
 const express = require("express");
 const session = require("express-session");
 const MongoStore = require("connect-mongo");
@@ -36,13 +47,14 @@ app.use(
 
 // Ensure the DB connection is established (or reused from a warm container) before any
 // route runs. connectDB() is cached — this is cheap on a warm invocation.
-app.use(async (req, res, next) => {
-  try {
-    await connectDB();
-    next();
-  } catch (err) {
-    next(err);
-  }
+// Fire-and-forget: don't await or the server crashes when MongoDB is offline.
+app.use((req, res, next) => {
+  connectDB()
+    .then(() => next())
+    .catch((err) => {
+      console.warn("[db] not available:", err.message);
+      next(); // let requests through — they'll fail at the model layer if DB is needed
+    });
 });
 
 // Razorpay webhook needs the RAW body to verify its HMAC signature, so it must be
@@ -96,12 +108,11 @@ app.use((err, req, res, next) => {
 // `node api/index.js` or `vercel dev`, which also goes through this file.
 if (require.main === module) {
   const PORT = process.env.PORT || 4000;
-  connectDB()
-    .then(() => app.listen(PORT, () => console.log(`[server] listening on http://localhost:${PORT}`)))
-    .catch((err) => {
-      console.error("[server] failed to start:", err.message);
-      process.exit(1);
-    });
+  app.listen(PORT, () => console.log(`[server] listening on http://localhost:${PORT}`));
+  // Try to connect to DB in the background — the /api/health endpoint will report
+  // { ok: false, db: false } until the connection succeeds.  This avoids a cold-start
+  // crash when MongoDB is temporarily unavailable.
+  connectDB().catch((err) => console.warn("[server] DB not available yet:", err.message));
 }
 
 module.exports = app;

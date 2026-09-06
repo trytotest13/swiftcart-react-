@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "SwiftCart — React frontend (byte-identical markup/CSS/behavior) + the original, untouched Express/Vercel backend.",
   "private": true,
-  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
