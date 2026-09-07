@@ -64,13 +64,16 @@ app.use("/api/payments/webhook", express.raw({ type: "application/json" }), paym
 app.use(express.json({ limit: "100kb" }));
 app.use(mongoSanitize());
 
+const sessionSecret = process.env.SESSION_SECRET || "swiftcart-secret-key-change-in-prod";
+const mongoUri = process.env.MONGODB_URI;
+
 app.use(
   session({
     name: "swiftcart.sid",
-    secret: process.env.SESSION_SECRET,
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
-    store: MongoStore.create({ mongoUrl: process.env.MONGODB_URI, collectionName: "sessions" }),
+    store: mongoUri ? MongoStore.create({ mongoUrl: mongoUri, collectionName: "sessions" }) : undefined,
     cookie: {
       httpOnly: true,
       secure: isProd, // Vercel serves HTTPS, so this is true in production
@@ -96,11 +99,7 @@ app.use("/api", (req, res) => res.status(404).json({ error: "Not found." }));
 
 app.use((err, req, res, next) => {
   console.error("[error]", err.message);
-  if (isProd) {
-    res.status(err.status || 500).json({ error: err.status ? err.message : "Internal server error." });
-  } else {
-    res.status(err.status || 500).json({ error: err.message, stack: err.stack });
-  }
+  res.status(err.status || 500).json({ error: err.message || "Internal server error." });
 });
 
 // Vercel's Node.js runtime calls the exported Express app directly as a request handler —
