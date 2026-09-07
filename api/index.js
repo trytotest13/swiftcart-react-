@@ -49,11 +49,12 @@ app.use(
 // route runs. connectDB() is cached — this is cheap on a warm invocation.
 // Fire-and-forget: don't await or the server crashes when MongoDB is offline.
 app.use((req, res, next) => {
+  if (req.path === "/api/health") return next();
   connectDB()
     .then(() => next())
     .catch((err) => {
       console.warn("[db] not available:", err.message);
-      next(); // let requests through — they'll fail at the model layer if DB is needed
+      res.status(503).json({ error: "Database connection failed. Please verify your MONGODB_URI connection string." });
     });
 });
 
