@@ -43,19 +43,15 @@ async function seed() {
   }
   console.log(`[seed] ensured ${DEFAULT_COUPONS.length} default coupons`);
 
-  const adminEmail = process.env.SEED_ADMIN_EMAIL;
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD;
-  if (adminEmail && adminPassword) {
-    const existing = await User.findOne({ email: adminEmail.toLowerCase() });
-    if (!existing) {
-      const passwordHash = await argon2.hash(adminPassword, { type: argon2.argon2id });
-      await User.create({ name: "Admin", email: adminEmail, passwordHash, role: "admin" });
-      console.log(`[seed] created admin account: ${adminEmail}`);
-    } else {
-      console.log(`[seed] admin account already exists: ${adminEmail}`);
-    }
+  const adminEmail = process.env.SEED_ADMIN_EMAIL || "admin@swiftcart.com";
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || "Admin12345!";
+  const existing = await User.findOne({ email: adminEmail.toLowerCase() });
+  if (!existing) {
+    const passwordHash = await argon2.hash(adminPassword, { type: argon2.argon2id });
+    await User.create({ name: "Admin", email: adminEmail, passwordHash, role: "admin" });
+    console.log(`[seed] created admin account: ${adminEmail}`);
   } else {
-    console.log("[seed] SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD not set — skipping admin creation.");
+    console.log(`[seed] admin account already exists: ${adminEmail}`);
   }
 
   process.exit(0);
