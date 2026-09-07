@@ -45,13 +45,24 @@ async function seed() {
 
   const adminEmail = process.env.SEED_ADMIN_EMAIL || "admin@swiftcart.com";
   const adminPassword = process.env.SEED_ADMIN_PASSWORD || "Admin12345!";
-  const existing = await User.findOne({ email: adminEmail.toLowerCase() });
-  if (!existing) {
+  const existingAdmin = await User.findOne({ email: adminEmail.toLowerCase() });
+  if (!existingAdmin) {
     const passwordHash = await argon2.hash(adminPassword, { type: argon2.argon2id });
     await User.create({ name: "Admin", email: adminEmail, passwordHash, role: "admin" });
     console.log(`[seed] created admin account: ${adminEmail}`);
   } else {
     console.log(`[seed] admin account already exists: ${adminEmail}`);
+  }
+
+  const userEmail = "user@swiftcart.com";
+  const userPassword = "User12345!";
+  const existingUser = await User.findOne({ email: userEmail.toLowerCase() });
+  if (!existingUser) {
+    const passwordHash = await argon2.hash(userPassword, { type: argon2.argon2id });
+    await User.create({ name: "Demo Customer", email: userEmail, passwordHash, role: "customer" });
+    console.log(`[seed] created customer account: ${userEmail}`);
+  } else {
+    console.log(`[seed] customer account already exists: ${userEmail}`);
   }
 
   process.exit(0);
